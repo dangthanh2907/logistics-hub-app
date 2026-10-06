@@ -17,5 +17,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
-  ]
+, "src/app/(driver)/_layout.jsx", "src/app/(driver)/index.jsx", "src/app/(driver)/order.jsx", "src/app/(sender)/_layout.jsx", "src/app/(sender)/index.jsx", "src/app/(sender)/order.jsx"  ]
 }

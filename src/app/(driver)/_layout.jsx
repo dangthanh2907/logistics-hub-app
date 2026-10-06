@@ -19,7 +19,7 @@ export default function TabLayout() {
       </NativeTabs.Trigger>
 
 
-        <NativeTabs.Trigger name="order">
+        <NativeTabs.Trigger name="order_driver">
         <NativeTabs.Trigger.Label>
           Đơn hàng
         </NativeTabs.Trigger.Label>

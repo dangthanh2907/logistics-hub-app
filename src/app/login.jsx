@@ -21,7 +21,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState(''); // lấy password
   const [showPassword, setShowPassword] = useState(false); // hiện thị mk
   const router = useRouter(); // điều hướng 
-  
+  const [rememberdevice, setRememberdevice] = useState(false);
+
   // hàm xử lý khi bấm đăng nhập , sẽ gửi 
   const handleLogin = async () => {
     // kiểm tra text có trông không
@@ -29,21 +30,42 @@ export default function LoginScreen() {
       Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ thông tin và mật khẩu');
       return;
     }
+    try {
+      //nếu có thông tin thì
+      const respone = await axiosClient.post("auth/login", {// gửi 1 http post lên backend
+        username: String(username).trim(),
+        password: String(password).trim()
+      });
+      //console.log("server trả dề: ",respone);
 
-    //nếu có thông tin thì
-    const respone = await axiosClient.post("auth/login", {// gửi 1 http post lên backend
-      username: String(username).trim(),
-      password: String(password).trim()
-    });
-    //console.log("server trả dề: ",respone);
-    await AsyncStorage.setItem("userToken", respone.data.token); // cất token vào 
-    await AsyncStorage.setItem("role", respone.data.role); // cất role vào 
-    router.replace('/');
-    // const savedToken = await AsyncStorage.getItem('userToken');
-    // const savedRole = await AsyncStorage.getItem('userRole');
 
-    // console.log('SAVED TOKEN:', savedToken);
-    // console.log('SAVED ROLE:', savedRole);
+      await AsyncStorage.setItem("userToken", respone.data.token); // cất token vào 
+      await AsyncStorage.setItem("role", respone.data.role); // cất role vào 
+
+      // 2. Xử lý ghi nhớ thiết bị[cite: 2]
+      if (rememberdevice) {
+        // Lưu trạng thái đã nhớ thiết bị và tên tài khoản
+        await AsyncStorage.setItem("rememberDevice", "true");
+        await AsyncStorage.setItem("savedUsername", String(username).trim());
+      } else {
+        // Nếu không chọn nhớ: xóa cờ để lần sau mở app bắt đăng nhập lại
+        await AsyncStorage.removeItem("rememberDevice");
+        await AsyncStorage.removeItem("savedUsername");
+      }
+
+      // phân quyền
+      if (respone.data.role === "SENDER") {
+        router.replace('/(sender)')
+      }
+      else {
+        router.replace('/(driver)')
+      }
+    }
+    catch (error) {
+      const errorMsg = error.response?.data?.message || 'Tài khoản hoặc mật khẩu không chính xác!';
+      Alert.alert('Đăng nhập thất bại', errorMsg);
+    }
+
   }
   return (
     <SafeAreaView style={styles.container}>
@@ -161,18 +183,32 @@ export default function LoginScreen() {
 
 
         {/* Remember */}
+        {/* Remember */}
         <View style={styles.rememberRow}>
-
-          <View style={styles.rememberLeft}>
-
-            <View style={styles.checkbox} />
+          <TouchableOpacity
+            style={styles.rememberLeft}
+            activeOpacity={0.7}
+            onPress={() => setRememberdevice((prev) => !prev)}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                rememberdevice && styles.checkboxChecked, // Đổi màu nền & viền khi true
+              ]}
+            >
+              {rememberdevice && (
+                <Ionicons
+                  name="checkmark"
+                  size={14}
+                  color="#FFFFFF"
+                />
+              )}
+            </View>
 
             <Text style={styles.rememberText}>
               Ghi nhớ thiết bị này
             </Text>
-
-          </View>
-
+          </TouchableOpacity>
         </View>
 
 
@@ -409,12 +445,20 @@ const styles = StyleSheet.create({
   },
 
   checkbox: {
-    width: 17,
-    height: 17,
-    borderWidth: 1,
+    width: 20,
+    height: 20,
+    borderWidth: 1.5,
     borderColor: '#747780',
     borderRadius: 4,
     marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+
+  checkboxChecked: {
+    backgroundColor: '#006591', // Màu nền xanh khi được chọn
+    borderColor: '#006591',     // Viền xanh đồng bộ
   },
 
   rememberText: {

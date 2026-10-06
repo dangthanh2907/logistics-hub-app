@@ -10,25 +10,25 @@ import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
 
-  const [userRole,setUserRole] = useState<string | null>("") ; //có thể 2 giá trị , 1 là String:sender 2 là null , và ("")  là giá trị ban đầu
+  const [userRole, setUserRole] = useState(""); //có thể 2 giá trị , 1 là String:sender 2 là null , và ("")  là giá trị ban đầu
   const [checkingAuth, setCheckingAuth] = useState(true);  // kiẻm tra xem sđăng nahapj xong chưa , chưa xong thì heienj loading
-  const router = useRouter(); 
+  const router = useRouter();
 
 
-  useEffect(()=>{ // useEffect dùng để chạy phần trong nó khi component được tạo / mở lần đầu , nhưng có [] phía sau , còn kh có thì chạy khi mỗi lần render
-    const verifyToken = async()=>{
+  useEffect(() => { // useEffect dùng để chạy phần trong nó khi component được tạo / mở lần đầu , nhưng có [] phía sau , còn kh có thì chạy khi mỗi lần render
+    const verifyToken = async () => {
       const token = await AsyncStorage.getItem("userToken");// lấy usertoken
       const role = await AsyncStorage.getItem("role"); //lấy role
-      if(!token){
+      if (!token) {
         router.replace("/login") // chưua đăng nhập kh có token thì đưua ra login
       }
-      else{
+      else {
         setUserRole(role)
         setCheckingAuth(false)// tắt loading
       }
     }
     verifyToken();
-  },[])
+  }, [])
 
   if (checkingAuth) {
     return (
@@ -37,12 +37,19 @@ export default function HomeScreen() {
       </View>
     );
   }
-  return(
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("userToken");
+    await AsyncStorage.removeItem("role");
+
+    router.replace("/login");
+  };
+  return (
     <View style={styles.container}>
       <Text style={styles.welcomeTitle}>Trang Chủ Logistics Hub</Text>
       <Text style={styles.roleText}>Vai trò hiện tại: {userRole}</Text>
-      <TouchableOpacity style={styles.logoutButton} >
-        <Text style={styles.logoutText}>Đăng xuất</Text>
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} >
+        <Text style={styles.logoutText} >Đăng xuất</Text>
       </TouchableOpacity>
     </View>
   );

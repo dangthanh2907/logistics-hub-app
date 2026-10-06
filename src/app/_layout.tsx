@@ -5,7 +5,10 @@ export default function RootLayout() {
   return (
     <Stack screenOptions={{ headerShown:false}}>
       <Stack.Screen name="login" />
-      <Stack.Screen name="(tab)" />
+      {/* khai báo chuyển đến sender */}
+      <Stack.Screen name="(sender)" /> 
+      {/* khai báo chuyển đến driver */}
+      <Stack.Screen name="(driver)" />
     </Stack>
   );
 }
