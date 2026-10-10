@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Order_detail from './Order_detail';
 
 
-const OrderCard = ({ order, submit }) => { // order là cái nhận từ cha xuống, còn submit là cái khi bấm nút thì ở cha nhận
+const OrderCard = (props) => { // order là cái nhận từ cha xuống, còn submit là cái khi bấm nút thì ở cha nhận
   //const router = useRouter(); 
 
   const [showDetail, setShowDetail] = useState(false);// us heienj thị deital
@@ -44,20 +44,27 @@ const OrderCard = ({ order, submit }) => { // order là cái nhận từ cha xu�
   }
 
   if (showDetail) {
-    return <Order_detail detail_order={detail_order} order = {order} getStatusText={getStatusText}/>
+    return <Order_detail
+      detail_order={detail_order}
+      order={props.order}
+      getStatusText={getStatusText}
+      changefinish={props.changefinish}
+      getorderfinish={props.getorderfinish}
+      getorderworking={props.getorderworking}
+       />
   }
   return (
     <View style={styles.orderCard}>
       <View style={styles.cardHeader}>
         <View>
-          <Text style={styles.orderId}>#{order.orderId}
+          <Text style={styles.orderId}>#{props.order.orderId}
           </Text>
           <Text style={styles.tracking}>
-            {order.trackingNumber}</Text>
+            {props.order.trackingNumber}</Text>
         </View>
         <View style={styles.status}>
           <View style={styles.statusDot} />
-          <Text style={styles.statusText}>{getStatusText(order.status)}</Text>
+          <Text style={styles.statusText}>{getStatusText(props.order.status)}</Text>
         </View>
       </View>
       <View style={styles.productSection}>
@@ -69,7 +76,7 @@ const OrderCard = ({ order, submit }) => { // order là cái nhận từ cha xu�
           />
         </View>
         <View style={styles.productInfo}>
-          <Text style={styles.productName}>{order.itemDescription}</Text>
+          <Text style={styles.productName}>{props.order.itemDescription}</Text>
         </View>
       </View>
       <View style={styles.divider} />
@@ -82,7 +89,7 @@ const OrderCard = ({ order, submit }) => { // order là cái nhận từ cha xu�
           />
         </View>
         <View style={styles.infoText}>
-          <Text style={styles.infoTitle}>{order.recipientName}</Text>
+          <Text style={styles.infoTitle}>{props.order.recipientName}</Text>
           <Text style={styles.infoLabel}>Người nhận</Text>
         </View>
         <Ionicons
@@ -100,7 +107,7 @@ const OrderCard = ({ order, submit }) => { // order là cái nhận từ cha xu�
           />
         </View>
         <View style={styles.infoText}>
-          <Text style={styles.infoTitle}>{order.recipientAddress}
+          <Text style={styles.infoTitle}>{props.order.recipientAddress}
           </Text>
           <Text style={styles.infoLabel}>Địa chỉ giao hàng</Text>
         </View>
@@ -115,7 +122,7 @@ const OrderCard = ({ order, submit }) => { // order là cái nhận từ cha xu�
         </View>
         <View style={styles.infoText}>
           <Text style={styles.infoTitle}>
-            {order.recipientPhone}
+            {props.order.recipientPhone}
           </Text>
           <Text style={styles.infoLabel}>
             Số điện thoại
@@ -127,7 +134,7 @@ const OrderCard = ({ order, submit }) => { // order là cái nhận từ cha xu�
           Tiền thu hộ (COD)
         </Text>
         <Text style={styles.codValue}>
-          {Number(order.codAmount || 0).toLocaleString('vi-VN')} ₫
+          {Number(props.order.codAmount || 0).toLocaleString('vi-VN')} ₫
         </Text>
       </View>
 
@@ -135,8 +142,8 @@ const OrderCard = ({ order, submit }) => { // order là cái nhận từ cha xu�
         style={styles.acceptButton}
         //onPress={() => submit(order)} // ?. có nghĩa là nếu nút onpress có tồn tại thì gọi không thì thôi
         onPress={() => {
-          if (order.status === 'PENDING') {
-            submit(order);
+          if (props.order.status === 'PENDING') {
+            props.submit(props.order);
           }
           else {
             detail_order();
@@ -145,7 +152,7 @@ const OrderCard = ({ order, submit }) => { // order là cái nhận từ cha xu�
         }}
       >
         <Text style={styles.acceptText}>
-          {order.status === 'PENDING'
+          {props.order.status === 'PENDING'
             ? 'Nhận đơn'
             : 'Xem chi tiết'}
         </Text>

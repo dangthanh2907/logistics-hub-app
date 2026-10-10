@@ -22,6 +22,8 @@ const OrderDriver = () => {
 
   const [orderworking, setOrderworking] = useState([]); // us chứa order theo driver
 
+  const [orderfinish, setOrderfinish] = useState([]); // chứa đơn hàng đã hoàn thành
+
   // hamf lấy các đơn hàng có sẵn cho tài xế
   const getorderavailable = async () => {
     try {
@@ -36,14 +38,22 @@ const OrderDriver = () => {
   //hàm gọi api đơn hàng theo tài xế 
   const getorderworking = async () => {
     try {
-      const respone = await axiosClient.get('/orders/driver')
+      const respone = await axiosClient.get('/orders/driver');
       setOrderworking(respone.data);
     } catch (error) {
       const errorMsg = error.response?.data?.message || 'Vui lòng kiểm tra lại!';
       Alert.alert('Lỗi tải dữ liệu', errorMsg);
     }
   }
-
+  const getorderfinish = async() => {
+    try {
+        const respone = await axiosClient.get('/orders/driver/finish');
+        setOrderfinish(respone.data);
+    } catch(error) {
+      const errorMsg = error.response?.data?.message || 'Vui lòng kiểm tra lại!';
+      Alert.alert('Lỗi tải dữ liệu', errorMsg);
+    }
+  }
 
 
   // hàm này sẽ lấy dữ liệu khi trang này render
@@ -51,6 +61,7 @@ const OrderDriver = () => {
 
     getorderavailable();
     getorderworking();
+    getorderfinish();
   }, [])
 
 
@@ -73,6 +84,14 @@ const OrderDriver = () => {
       Alert.alert('Đã có lỗi xảy ra', errorMsg);
     }
   }
+
+
+  // hàm thay đổi state thành finish dể hiện thị các đơn đẫ hoàn thành
+  const changefinish = () => {
+    setMyOrderTab("finish");
+  }
+
+  const ordernotdeliverd = orderworking.filter((order)=>order.status != "DELIVERED") // lọc các đơn hàng mà status không phải là DELIVERED
   return (
     <View style={styles.container}>
 
@@ -206,7 +225,7 @@ const OrderDriver = () => {
                     : styles.filterText
                 }
               >
-                Đang làm việc 
+                Đang làm việc
               </Text>
             </TouchableOpacity>
 
@@ -267,6 +286,7 @@ const OrderDriver = () => {
                       key={order.orderId}
                       order={order}
                       submit={handleReceiveOrder}
+  
                     />
                   ))
                 )
@@ -279,10 +299,32 @@ const OrderDriver = () => {
           myOrderTab === 'working' && (
             <View>
               {
-                orderworking.length === 0 ? (
+                ordernotdeliverd.length === 0 ? (
                   <Text style={styles.emptyText}>Bạn không có đơn hàng nào </Text>
                 ) : (
-                  orderworking.map((order) => (
+                  ordernotdeliverd.map((order) => (
+                    <OrderCard
+                      key={order.orderId}
+                      order={order}
+                      changefinish={changefinish}
+                      getorderfinish={getorderfinish} // gửi hàm lấy các đơn hàng đã hoàn thành xuống 
+                      getorderworking = {getorderworking } // gửi hàm này để cập nhật lại working sau khi hoàn tất giao hàng
+                    />
+                  ))
+                )
+
+              }
+            </View>
+          )
+        }
+        {
+          myOrderTab === 'finish' && (
+            <View>
+              {
+                orderfinish.length === 0 ? (
+                  <Text style={styles.emptyText}>Bạn không có đơn hàng nào </Text>
+                ) : (
+                  orderfinish.map((order) => (
                     <OrderCard
                       key={order.orderId}
                       order={order}

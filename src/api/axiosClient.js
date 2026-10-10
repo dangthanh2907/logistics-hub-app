@@ -20,7 +20,8 @@ axiosClient.interceptors.request.use(async (config) => {  // .interceptors.reque
     config.headers.Authorization = `Bearer ${token}`;
   }
   //console.log('REQUEST HEADERS:', config.headers);
-  
+  // console.log("REQUEST URL:", config.url);
+  // console.log("AUTH HEADER:", config.headers?.Authorization);
   return config;
 })
 

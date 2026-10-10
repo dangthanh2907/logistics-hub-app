@@ -1,4 +1,5 @@
 import {
+    Alert,
     Linking,
     SafeAreaView,
     ScrollView,
@@ -6,13 +7,19 @@ import {
     Text,
     TouchableOpacity,
     View,
+    PanResponder,
+    Animated,
 } from 'react-native';
 
-import { Ionicons } from '@expo/vector-icons';
 
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useRef, useState } from 'react';
+import axiosClient from '../api/axiosClient';
 
 
 const Order_detail = (props) => {
+
+
 
     const openMap = () => {
         const address = props.order.senderAddress;
@@ -21,7 +28,38 @@ const Order_detail = (props) => {
             `&travelmode=driving`;;
         Linking.openURL(url);
     }
-
+    //dành cho thanh trượt
+    const step_change = [
+        {
+            currentStatus: 'ASSIGNED',
+            stepIndexText: 'Bước 2/6: Xác nhận nhận đã đến',
+            title: 'Trượt để xác nhận đã đã đến',
+            endpoint: 'arrived_pickingup',
+            nextStatus: 'ARRIVED_PICKUP',
+        },
+        {
+            currentStatus: 'ARRIVED_PICKUP',
+            stepIndexText: 'Bước 3/6: Xác nhận nhận kiện hàng',
+            title: 'Trượt để xác nhận đã lấy hàng',
+            endpoint: 'picked_up',
+            nextStatus: 'PICKED_UP',
+        },
+        {
+            currentStatus: 'PICKED_UP',
+            stepIndexText: 'Bước 4/6: Di chuyển đến điểm giao',
+            title: 'Trượt để xác nhận đã đến nơi giao',
+            endpoint: 'arrived_delivery',
+            nextStatus: 'ARRIVED_DELIVERY',
+        },
+        {
+            currentStatus: 'ARRIVED_DELIVERY',
+            stepIndexText: 'Bước 5/6: Bàn giao cho người nhận',
+            title: 'Trượt để xác nhận đã giao hàng thành công',
+            endpoint: 'delivered',
+            nextStatus: 'DELIVERED',
+        },
+    ];
+    // dành cho tiến  trình 
     const steps = [
         {
             status: 'PENDING',
@@ -67,18 +105,168 @@ const Order_detail = (props) => {
         },
     ];
 
+    const [currentOrder, setCurrentOrder] = useState(props.order); // truyền vào order hiện tại để khi có thay đổi status thì render lại component 
 
-    const getstep_exist = steps.findIndex(step => step.status === props.order.status)    // hàm lấy bước hiện tại trả về vị trí 
+    const currentAction = step_change.find(step => step.currentStatus === currentOrder.status) // hàm dành dành cho cái chỗ thanh trượt
+
+    const getstep_exist = steps.findIndex(step => step.status === currentOrder.status)    // hàm lấy bước hiện tại trả về vị trí , dành cho cái các quy trình
+
+    useEffect(() => {
+        setCurrentOrder(prev => {
+            // Cùng một đơn hàng thì không ghi đè state vừa cập nhật
+            if (prev?.orderId === props.order?.orderId) {
+                return prev;
+            }
+
+            // Chỉ khởi tạo lại khi chuyển sang đơn hàng khác
+            return props.order;
+        });
+    }, [props.order]);
+
+    // hàm này sẽ được gọi để gọi api khi tìa xế kéo thanh đến 70 %
+    const handleconfirmStatus = async () => {
+        if (!currentAction) return; // nếu currentAction  mà khôgn có trả về gì thì dừng hàm
+        try {
+            // console.log("hiện tại :",currentAction.status);
+            // console.log("hiện tại  :",currentAction.endpoint);
+            const respone = await axiosClient.put(`/orders/${currentOrder.orderId}/${currentAction.endpoint}`) // gọi api đổi status
+            console.log("đã đổi trạng thái thành công: ", currentAction.nextStatus);
+
+            if (currentAction.nextStatus === "DELIVERED") {
+                Alert.alert("Thành công", "Đơn hàng đã được giao thành công!");
+                props.changefinish();
+                await props.getorderfinish();
+                await props.getorderworking();
+            }
+
+            if (respone?.data) //?.nếu respone có tồn tại thì lấy data còn khôgn thì trả về undefined thêm if để kiểm tra nó là đúng 1 đối tượng hoặc chuỗi không phải undifined thì thực hiện code trong if
+            {
+                setCurrentOrder(respone.data); // truyền order mới vào state để render lại
+            }
+            else { // trường hợp gửi thành công rồi đã đổi được và trả lại respone == null thì vẫn biết trạng thái tiếp theo là gì
+                setCurrentOrder(prev => ({ //prev đây chính là currentOrder
+                    ...prev, // toán tử 3 chấm coppy dữ liệu ở prev qua object mới sau đó truyền vào lại set để
+                    status: currentAction.nextStatus, // gán trạng thái của order là cái tiếp theo để biết 
+                }))
+            }
+        } catch (error) {
+            console.log('HTTP status:', error.response?.status);
+            console.log('Backend message:', error.response?.data);
+            console.log('Order ID:', currentOrder.orderId);
+            console.log('Current status:', currentOrder.status);
+            console.log('Endpoint:', currentAction?.endpoint);
+        }
+    }
     //hàm đổi lại giờ
+    // Hàm đổi lại ngày giờ
     const formatTime = (dateString) => {
         if (!dateString) return null;
+
         const date = new Date(dateString);
+
         if (isNaN(date.getTime())) return null;
+
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+
         const hours = date.getHours().toString().padStart(2, '0');
         const minutes = date.getMinutes().toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
+
+        return `${hours}:${minutes} - ${day}/${month}/${year} `;
     };
 
+
+    // hàm đổi trạng thái thành đã đến lấy hàng
+    // const chanstatus_arrived_pickup = async () => {
+    //     try {
+    //         await axiosClient.put(`orders/${props.order.orderId}/arrived_pickingup`);
+    //         console.log("Đã đổi trạng thái thành ARRIVED_PICKUP");
+    //     } catch (error) {
+    //         console.log("Lỗi đổi trạng thái:", error);
+    //     }
+    // }
+
+
+    const [isSliding, setIsSliding] = useState(false);
+    const [sliderWidth, setSliderWidth] = useState(0);
+
+    const THUMB_SIZE = 48;
+    const MAX_DRAG = Math.max(0, sliderWidth - THUMB_SIZE - 8);
+
+    const pan = useRef(new Animated.Value(0)).current;
+
+    // Lưu giá trị mới nhất để PanResponder luôn đọc đúng
+    const maxDragRef = useRef(0);
+    const isSlidingRef = useRef(false);
+
+    useEffect(() => {
+        maxDragRef.current = MAX_DRAG;
+    }, [MAX_DRAG]);
+
+    useEffect(() => {
+        isSlidingRef.current = isSliding;
+    }, [isSliding]);
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: () => true,
+
+            onPanResponderGrant: () => {
+                console.log('Bắt đầu chạm nút trượt');
+            },
+
+            onPanResponderMove: (_, gestureState) => {
+                const max = maxDragRef.current;
+
+                const newX = Math.max(
+                    0,
+                    Math.min(gestureState.dx, max)
+                );
+
+                console.log('dx:', gestureState.dx, 'max:', max);
+
+                pan.setValue(newX);
+            },
+
+            onPanResponderRelease: (_, gestureState) => {
+                const max = maxDragRef.current;
+
+                if (
+                    max > 0 &&
+                    gestureState.dx >= max * 0.7 &&
+                    !isSlidingRef.current
+                ) {
+                    isSlidingRef.current = true;
+                    setIsSliding(true);
+
+                    Animated.timing(pan, {
+                        toValue: max,
+                        duration: 120,
+                        useNativeDriver: true,
+                    }).start(async () => {
+                        try {
+                            await handleconfirmStatus();
+                        } finally {
+                            Animated.spring(pan, {
+                                toValue: 0,
+                                useNativeDriver: true,
+                            }).start(() => {
+                                isSlidingRef.current = false;
+                                setIsSliding(false);
+                            });
+                        }
+                    });
+                } else {
+                    Animated.spring(pan, {
+                        toValue: 0,
+                        useNativeDriver: true,
+                    }).start();
+                }
+            },
+        })
+    ).current;
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
@@ -163,7 +351,7 @@ const Order_detail = (props) => {
                                 <View style={styles.statusDot} />
 
                                 <Text style={styles.statusText}>
-                                    {props.getStatusText(props.order.status)}
+                                    {props.getStatusText(currentOrder.status)}
                                 </Text>
 
                             </View>
@@ -182,7 +370,7 @@ const Order_detail = (props) => {
                                 />
 
                                 <Text style={styles.smallText} >
-                                    {props.order.createAt}
+                                    {props.order.createdAt}
                                 </Text>
                             </View>
 
@@ -524,12 +712,12 @@ const Order_detail = (props) => {
                         {
 
                             steps.map((step, index) => { // key là pahan tử, value là vị trí
-                                const complete = index <=  getstep_exist // 0 <2 =>true, 1<2 => true 
+                                const complete = index <= getstep_exist // 0 <2 =>true, 1<2 => true 
                                 const active = index === getstep_exist // lấy trạng thái hiện tại  trả về true false
                                 // 1. Lấy dữ liệu thời gian tương ứng từ props.order theo timeKey trong JSON
                                 const rawTime = props.order?.[step.timeKey]; // Ví dụ: props.order.createdAt, props.order.assignedAt
                                 //console.log(rawTime);
-                                
+
                                 const timeText = formatTime(rawTime); // Chuyển chuỗi ISO sang giờ:phút (14:30)
                                 // 2. Xác định mô tả hiển thị
                                 let subtitle = 'Chưa thực hiện';
@@ -589,9 +777,13 @@ const Order_detail = (props) => {
 
                     <View style={styles.sliderHeader}>
 
-                        <Text style={styles.sliderStep}>
-                            ● Bước 2/5: Di chuyển đến điểm lấy hàng
-                        </Text>
+
+                        {currentAction && (
+                            <Text style={styles.sliderStep}>
+                                {currentAction.stepIndexText}
+                            </Text>
+                        )}
+
 
                         <View style={styles.swipeHint}>
                             <Ionicons
@@ -603,27 +795,56 @@ const Order_detail = (props) => {
                             <Text style={styles.swipeText}>
                                 Gạt hết sang phải
                             </Text>
+                            {/* <TouchableOpacity
+                                style={{
+                                    marginTop: 10,
+                                    padding: 12,
+                                    backgroundColor: '#00193C',
+                                    borderRadius: 10,
+                                }}
+                                onPress={handleconfirmStatus}
+                            >
+                                <Text style={{ color: '#FFFFFF', textAlign: 'center' }}>
+                                    TEST ĐỔI TRẠNG THÁI
+                                </Text>
+                            </TouchableOpacity> */}
                         </View>
 
                     </View>
 
 
-                    <View style={styles.slider}>
+                    <View
+                        style={styles.slider}
+                        onLayout={(event) => {
+                            const width = event.nativeEvent.layout.width;
 
-                        <View style={styles.sliderThumb}>
-
+                            console.log('Chiều rộng thanh trượt:', width);
+                            setSliderWidth(width);
+                        }}
+                    >
+                        <Animated.View
+                            {...panResponder.panHandlers}
+                            style={[
+                                styles.sliderThumb,
+                                {
+                                    transform: [{ translateX: pan }],
+                                },
+                            ]}
+                        >
                             <Ionicons
                                 name="arrow-forward"
                                 size={23}
                                 color="#FFFFFF"
                             />
+                        </Animated.View>
 
-                        </View>
-
-                        <Text style={styles.sliderText}>
-                            Trượt để xác nhận đã đến nơi lấy
-                        </Text>
-
+                        {currentAction && (
+                            <Text style={styles.sliderText}>
+                                {isSliding
+                                    ? 'Đang cập nhật trạng thái...'
+                                    : currentAction.title}
+                            </Text>
+                        )}
                     </View>
 
                 </View>
