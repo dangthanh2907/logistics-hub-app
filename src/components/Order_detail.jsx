@@ -11,9 +11,9 @@ import {
     Animated,
 } from 'react-native';
 
+import { useEffect, useRef, useState, useMemo } from 'react';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 
 
@@ -125,7 +125,8 @@ const Order_detail = (props) => {
 
     // hàm này sẽ được gọi để gọi api khi tìa xế kéo thanh đến 70 %
     const handleconfirmStatus = async () => {
-        if (!currentAction) return; // nếu currentAction  mà khôgn có trả về gì thì dừng hàm
+        if (!currentAction || isCallingApiRef.current) return; // nếu currentAction  mà khôgn có trả về gì thì dừng hàm
+        isCallingApiRef.current = true;
         try {
             // console.log("hiện tại :",currentAction.status);
             // console.log("hiện tại  :",currentAction.endpoint);
@@ -156,6 +157,9 @@ const Order_detail = (props) => {
             console.log('Current status:', currentOrder.status);
             console.log('Endpoint:', currentAction?.endpoint);
         }
+        finally {
+            isCallingApiRef.current = false;
+        }
     }
     //hàm đổi lại giờ
     // Hàm đổi lại ngày giờ
@@ -176,97 +180,65 @@ const Order_detail = (props) => {
         return `${hours}:${minutes} - ${day}/${month}/${year} `;
     };
 
-
-    // hàm đổi trạng thái thành đã đến lấy hàng
-    // const chanstatus_arrived_pickup = async () => {
-    //     try {
-    //         await axiosClient.put(`orders/${props.order.orderId}/arrived_pickingup`);
-    //         console.log("Đã đổi trạng thái thành ARRIVED_PICKUP");
-    //     } catch (error) {
-    //         console.log("Lỗi đổi trạng thái:", error);
-    //     }
-    // }
-
-
-    const [isSliding, setIsSliding] = useState(false);
+    // biến thành trượt 
+    //const screen_width = Dimensions.get('window').width; // lấy kích thước của màn hình
     const [sliderWidth, setSliderWidth] = useState(0);
+    //const slider_width = screen_width - 32; //lấy chiều rộng của thanh trượt trừ đi 16 px mỗi bên
+    const thummb_size = 48; // kích thước của nút 
+    const max_drag = Math.max(0, sliderWidth - thummb_size - 8);// độ dài tối đa nút có thể di chuyển
+    const pan = useRef(new Animated.Value(0)).current; // useRef dùng để giữ biến trong nó ổn định khi mỗi lần render 
+    const [isSliding, setIsSliding] = useState(false); // biến này sẽ dùng để nhận biết kéo qua có đủ 70 % thanh kéo chưa nếu qua thì đổi thành true
+    const isCallingApiRef = useRef(false);
 
-    const THUMB_SIZE = 48;
-    const MAX_DRAG = Math.max(0, sliderWidth - THUMB_SIZE - 8);
-
-    const pan = useRef(new Animated.Value(0)).current;
-
-    // Lưu giá trị mới nhất để PanResponder luôn đọc đúng
-    const maxDragRef = useRef(0);
-    const isSlidingRef = useRef(false);
-
+    const handleConfirmRef = useRef(handleconfirmStatus);
     useEffect(() => {
-        maxDragRef.current = MAX_DRAG;
-    }, [MAX_DRAG]);
+        handleConfirmRef.current = handleconfirmStatus;
+    });
+    const panResponder = useMemo(
+        () =>
+            PanResponder.create({
+                onStartShouldSetPanResponder: () => true,
+                onMoveShouldSetPanResponder: () => true,
 
-    useEffect(() => {
-        isSlidingRef.current = isSliding;
-    }, [isSliding]);
+                onPanResponderMove: (_, gestureState) => {
+                    const dx = Math.max(
+                        0,
+                        Math.min(gestureState.dx, max_drag)
+                    );
 
-    const panResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: () => true,
+                    pan.setValue(dx);
+                },
 
-            onPanResponderGrant: () => {
-                console.log('Bắt đầu chạm nút trượt');
-            },
+                onPanResponderRelease: (_, gestureState) => {
+                    if (gestureState.dx >= max_drag * 0.7) {
+                        setIsSliding(true);
 
-            onPanResponderMove: (_, gestureState) => {
-                const max = maxDragRef.current;
-
-                const newX = Math.max(
-                    0,
-                    Math.min(gestureState.dx, max)
-                );
-
-                console.log('dx:', gestureState.dx, 'max:', max);
-
-                pan.setValue(newX);
-            },
-
-            onPanResponderRelease: (_, gestureState) => {
-                const max = maxDragRef.current;
-
-                if (
-                    max > 0 &&
-                    gestureState.dx >= max * 0.7 &&
-                    !isSlidingRef.current
-                ) {
-                    isSlidingRef.current = true;
-                    setIsSliding(true);
-
-                    Animated.timing(pan, {
-                        toValue: max,
-                        duration: 120,
-                        useNativeDriver: true,
-                    }).start(async () => {
-                        try {
-                            await handleconfirmStatus();
-                        } finally {
-                            Animated.spring(pan, {
-                                toValue: 0,
-                                useNativeDriver: true,
-                            }).start(() => {
-                                isSlidingRef.current = false;
-                                setIsSliding(false);
-                            });
-                        }
-                    });
-                } else {
-                    Animated.spring(pan, {
-                        toValue: 0,
-                        useNativeDriver: true,
-                    }).start();
-                }
-            },
-        })
-    ).current;
+                        Animated.timing(pan, {
+                            toValue: max_drag,
+                            duration: 100,
+                            useNativeDriver: true,
+                        }).start(async () => {
+                            try {
+                                await handleConfirmRef.current?.();
+                            } finally {
+                                Animated.spring(pan, {
+                                    toValue: 0,
+                                    useNativeDriver: true,
+                                }).start(() => {
+                                    setIsSliding(false);
+                                });
+                            }
+                        });
+                    } else {
+                        Animated.spring(pan, {
+                            toValue: 0,
+                            useNativeDriver: true,
+                        }).start();
+                    }
+                },
+            }),
+        [max_drag, pan]
+    );
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
@@ -296,8 +268,6 @@ const Order_detail = (props) => {
                     </TouchableOpacity>
 
                 </View>
-
-
                 <ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
@@ -305,34 +275,24 @@ const Order_detail = (props) => {
 
                     {/* ================= ORDER SUMMARY ================= */}
                     <View style={styles.card}>
-
                         <View style={styles.orderHeader}>
-
                             <View>
                                 <View style={styles.orderTitleRow}>
-
                                     <Text style={styles.orderTitle}>
                                         Đơn hàng #{props.order.orderId}
                                     </Text>
-
                                     <View style={styles.urgentBadge}>
                                         <Text style={styles.urgentText}>
                                             HỎA TỐC
                                         </Text>
                                     </View>
-
                                 </View>
-
                                 <View style={styles.trackingRow}>
-
                                     <Text style={styles.label}>
                                         Mã vận đơn:{props.order.trackingNumber}
                                     </Text>
-
                                     <Text style={styles.trackingNumber}>
-
                                     </Text>
-
                                     <TouchableOpacity>
                                         <Ionicons
                                             name="copy-outline"
@@ -340,7 +300,6 @@ const Order_detail = (props) => {
                                             color="#00193C"
                                         />
                                     </TouchableOpacity>
-
                                 </View>
                             </View>
 
@@ -776,14 +735,11 @@ const Order_detail = (props) => {
                 <View style={styles.bottomAction}>
 
                     <View style={styles.sliderHeader}>
-
-
                         {currentAction && (
                             <Text style={styles.sliderStep}>
                                 {currentAction.stepIndexText}
                             </Text>
                         )}
-
 
                         <View style={styles.swipeHint}>
                             <Ionicons
@@ -795,60 +751,46 @@ const Order_detail = (props) => {
                             <Text style={styles.swipeText}>
                                 Gạt hết sang phải
                             </Text>
-                            {/* <TouchableOpacity
-                                style={{
-                                    marginTop: 10,
-                                    padding: 12,
-                                    backgroundColor: '#00193C',
-                                    borderRadius: 10,
-                                }}
-                                onPress={handleconfirmStatus}
-                            >
-                                <Text style={{ color: '#FFFFFF', textAlign: 'center' }}>
-                                    TEST ĐỔI TRẠNG THÁI
-                                </Text>
-                            </TouchableOpacity> */}
                         </View>
-
                     </View>
 
+                    {/* Nếu chưa hoàn tất đơn hàng thì hiện thanh kéo, xong rồi thì hiện thông báo */}
+                    {currentAction ? (
+                        <View style={styles.slider}
+                            onLayout={(event) => {
+                                setSliderWidth(event.nativeEvent.layout.width);
+                            }}>
+                            {/* Nút tròn gạt theo tay */}
+                            <Animated.View
+                                {...panResponder.panHandlers}
+                                style={[
+                                    styles.sliderThumb,
+                                    {
+                                        transform: [{ translateX: pan }],
+                                    },
+                                ]}
+                            >
+                                <Ionicons
+                                    name="arrow-forward"
+                                    size={23}
+                                    color="#FFFFFF"
+                                />
+                            </Animated.View>
 
-                    <View
-                        style={styles.slider}
-                        onLayout={(event) => {
-                            const width = event.nativeEvent.layout.width;
-
-                            console.log('Chiều rộng thanh trượt:', width);
-                            setSliderWidth(width);
-                        }}
-                    >
-                        <Animated.View
-                            {...panResponder.panHandlers}
-                            style={[
-                                styles.sliderThumb,
-                                {
-                                    transform: [{ translateX: pan }],
-                                },
-                            ]}
-                        >
-                            <Ionicons
-                                name="arrow-forward"
-                                size={23}
-                                color="#FFFFFF"
-                            />
-                        </Animated.View>
-
-                        {currentAction && (
+                            {/* Dòng chữ trạng thái */}
                             <Text style={styles.sliderText}>
-                                {isSliding
-                                    ? 'Đang cập nhật trạng thái...'
-                                    : currentAction.title}
+                                {isSliding ? 'Đang cập nhật...' : currentAction.title}
                             </Text>
-                        )}
-                    </View>
+                        </View>
+                    ) : (
+                        <View style={[styles.slider, { backgroundColor: '#E0F2FE' }]}>
+                            <Text style={[styles.sliderText, { color: '#006591' }]}>
+                                Đơn hàng đã hoàn thành
+                            </Text>
+                        </View>
+                    )}
 
                 </View>
-
             </View>
         </SafeAreaView>
     );
