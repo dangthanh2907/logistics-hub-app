@@ -9,8 +9,10 @@ import {
     View,
     PanResponder,
     Animated,
+    ToastAndroid,
 } from 'react-native';
 
+import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState, useMemo } from 'react';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -18,9 +20,6 @@ import axiosClient from '../api/axiosClient';
 
 
 const Order_detail = (props) => {
-
-
-
     const openMap = () => {
         const address = props.order.senderAddress;
         const url = `https://www.google.com/maps/dir/?api=1` +
@@ -104,7 +103,6 @@ const Order_detail = (props) => {
             desc: 'Hoàn tất chuyến hàng',
         },
     ];
-
     const [currentOrder, setCurrentOrder] = useState(props.order); // truyền vào order hiện tại để khi có thay đổi status thì render lại component 
 
     const currentAction = step_change.find(step => step.currentStatus === currentOrder.status) // hàm dành dành cho cái chỗ thanh trượt
@@ -239,6 +237,35 @@ const Order_detail = (props) => {
             }),
         [max_drag, pan]
     );
+
+    // Hàm định dạng số tiền có dấu chấm phân cách hàng nghìn (VD: 150.000 đ)
+    const formatCurrency = (amount) => {
+        if (amount === undefined || amount === null || isNaN(amount)) {
+            return '0 đ';
+        }
+        return Number(amount).toLocaleString('vi-VN') + ' VND';
+    };
+
+    //hàm sao chép mã vận đơn
+    const handleCopyTrackingNumber = async () => {
+        if (!props.order?.trackingNumber) return;
+
+        await Clipboard.setStringAsync(props.order.trackingNumber);
+        ToastAndroid.show('Đã sao chép mã vận đơn', ToastAndroid.SHORT);
+    };
+    // hàm gọi bằng số điện thoại
+    const handleMakeCall = (phoneNumber) => {
+        if (!phoneNumber) {
+            Alert.alert('Thông báo', 'Số điện thoại không hợp lệ');
+            return;
+        }
+
+        const url = `tel:${phoneNumber}`;
+        Linking.openURL(url).catch((err) => {
+            console.log('Lỗi mở ứng dụng gọi điện:', err);
+            Alert.alert('Lỗi', 'Không thể mở trình quay số điện thoại');
+        });
+    };
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
@@ -257,22 +284,11 @@ const Order_detail = (props) => {
                     <Text style={styles.headerTitle}>
                         Chi tiết đơn hàng
                     </Text>
-
-                    <TouchableOpacity style={styles.supportButton}>
-                        <Ionicons
-                            name="headset-outline"
-                            size={22}
-                            color="#0B1C30"
-
-                        />
-                    </TouchableOpacity>
-
                 </View>
                 <ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
                 >
-
                     {/* ================= ORDER SUMMARY ================= */}
                     <View style={styles.card}>
                         <View style={styles.orderHeader}>
@@ -281,11 +297,7 @@ const Order_detail = (props) => {
                                     <Text style={styles.orderTitle}>
                                         Đơn hàng #{props.order.orderId}
                                     </Text>
-                                    <View style={styles.urgentBadge}>
-                                        <Text style={styles.urgentText}>
-                                            HỎA TỐC
-                                        </Text>
-                                    </View>
+
                                 </View>
                                 <View style={styles.trackingRow}>
                                     <Text style={styles.label}>
@@ -293,7 +305,7 @@ const Order_detail = (props) => {
                                     </Text>
                                     <Text style={styles.trackingNumber}>
                                     </Text>
-                                    <TouchableOpacity>
+                                    <TouchableOpacity onPress={handleCopyTrackingNumber}>
                                         <Ionicons
                                             name="copy-outline"
                                             size={15}
@@ -329,20 +341,7 @@ const Order_detail = (props) => {
                                 />
 
                                 <Text style={styles.smallText} >
-                                    {props.order.createdAt}
-                                </Text>
-                            </View>
-
-                            <View style={styles.distanceBadge}>
-
-                                <Ionicons
-                                    name="navigate-outline"
-                                    size={15}
-                                    color="#006591"
-                                />
-
-                                <Text style={styles.distanceText}>
-                                    8.4 km • 18 phút
+                                    {formatTime(currentOrder.createdAt)}
                                 </Text>
                             </View>
                         </View>
@@ -355,7 +354,6 @@ const Order_detail = (props) => {
                         <View style={styles.sectionHeader}>
 
                             <View style={styles.sectionTitleContainer}>
-
                                 <View style={styles.iconBox}>
                                     <Ionicons
                                         name="business-outline"
@@ -377,7 +375,7 @@ const Order_detail = (props) => {
                             </View>
 
 
-                            <TouchableOpacity style={styles.callButton}>
+                            <TouchableOpacity style={styles.callButton}  onPress={()=>handleMakeCall(currentOrder.senderPhone)} >
                                 <Ionicons
                                     name="call"
                                     size={19}
@@ -462,28 +460,15 @@ const Order_detail = (props) => {
                                 </View>
 
                             </View>
-
-
                             <View style={styles.contactButtons}>
-
-                                <TouchableOpacity style={styles.messageButton}>
-                                    <Ionicons
-                                        name="chatbubble-outline"
-                                        size={19}
-                                        color="#00193C"
-                                    />
-                                </TouchableOpacity>
-
-                                <TouchableOpacity style={styles.callButton}>
+                                <TouchableOpacity style={styles.callButton} onPress={()=>handleMakeCall(currentOrder.recipientPhone)}>
                                     <Ionicons
                                         name="call"
                                         size={19}
                                         color="#FFFFFF"
                                     />
                                 </TouchableOpacity>
-
                             </View>
-
                         </View>
 
 
@@ -576,33 +561,9 @@ const Order_detail = (props) => {
 
                         {/* COD */}
                         <View style={styles.codBox}>
-
-                            <View>
-
                                 <Text style={styles.codLabel}>
-                                    TIỀN THU HỘ (COD)
+                                    SEAL:{props.order.sealNumber}
                                 </Text>
-
-                                <Text style={styles.codAmount}>
-                                    {props.order.codAmount}
-                                </Text>
-
-                            </View>
-
-                            <View style={styles.cashBadge}>
-
-                                <Ionicons
-                                    name="cash-outline"
-                                    size={16}
-                                    color="#D7E3FF"
-                                />
-
-                                <Text style={styles.cashText}>
-                                    Thu tiền mặt
-                                </Text>
-
-                            </View>
-
                         </View>
 
 
@@ -674,14 +635,19 @@ const Order_detail = (props) => {
                                 const complete = index <= getstep_exist // 0 <2 =>true, 1<2 => true 
                                 const active = index === getstep_exist // lấy trạng thái hiện tại  trả về true false
                                 // 1. Lấy dữ liệu thời gian tương ứng từ props.order theo timeKey trong JSON
-                                const rawTime = props.order?.[step.timeKey]; // Ví dụ: props.order.createdAt, props.order.assignedAt
-                                //console.log(rawTime);
+                                const rawTime = currentOrder?.[step.timeKey]; // Ví dụ: props.order.createdAt, props.order.assignedAt
+
+                                // console.log(
+                                //     step.status,
+                                //     step.timeKey,
+                                //     rawTime
+                                // );
 
                                 const timeText = formatTime(rawTime); // Chuyển chuỗi ISO sang giờ:phút (14:30)
                                 // 2. Xác định mô tả hiển thị
                                 let subtitle = 'Chưa thực hiện';
                                 if (complete || active) {
-                                    subtitle = timeText ? `${timeText} • ${step.desc}` : step.desc; // Ghép giờ và mô tả[cite: 8]
+                                    subtitle = timeText ? `${timeText} • ${step.desc}` : step.desc; // Ghép giờ và mô tả
                                 }
                                 return (
                                     <View key={index} style={styles.stepContainer}>
@@ -740,14 +706,12 @@ const Order_detail = (props) => {
                                 {currentAction.stepIndexText}
                             </Text>
                         )}
-
                         <View style={styles.swipeHint}>
                             <Ionicons
                                 name="swap-horizontal-outline"
                                 size={14}
                                 color="#44474F"
                             />
-
                             <Text style={styles.swipeText}>
                                 Gạt hết sang phải
                             </Text>
@@ -1185,7 +1149,7 @@ const styles = StyleSheet.create({
     },
 
     codLabel: {
-        fontSize: 10,
+        fontSize: 20,
         fontWeight: '700',
         color: '#7D97C9',
         letterSpacing: 1,
@@ -1381,7 +1345,6 @@ const styles = StyleSheet.create({
         },
         shadowOpacity: 0.08,
         shadowRadius: 10,
-
         elevation: 10,
     },
 

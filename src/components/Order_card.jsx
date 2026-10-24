@@ -51,7 +51,7 @@ const OrderCard = (props) => { // order là cái nhận từ cha xuống, còn s
       changefinish={props.changefinish}
       getorderfinish={props.getorderfinish}
       getorderworking={props.getorderworking}
-       />
+    />
   }
   return (
     <View style={styles.orderCard}>
@@ -92,11 +92,11 @@ const OrderCard = (props) => { // order là cái nhận từ cha xuống, còn s
           <Text style={styles.infoTitle}>{props.order.recipientName}</Text>
           <Text style={styles.infoLabel}>Người nhận</Text>
         </View>
-        <Ionicons
+        {/* <Ionicons
           name="call-outline"
           size={20}
           color="#075985"
-        />
+        /> */}
       </View>
       <View style={styles.infoRow}>
         <View style={styles.infoIcon}>
@@ -131,10 +131,10 @@ const OrderCard = (props) => { // order là cái nhận từ cha xuống, còn s
       </View>
       <View style={styles.codBox}>
         <Text style={styles.codLabel}>
-          Tiền thu hộ (COD)
+          Chi phí vận chuyển 
         </Text>
         <Text style={styles.codValue}>
-          {Number(props.order.codAmount || 0).toLocaleString('vi-VN')} ₫
+          {/* {props.order.sealNumber} */}
         </Text>
       </View>
 

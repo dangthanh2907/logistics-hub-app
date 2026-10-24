@@ -296,7 +296,7 @@ const OrderDriver = () => {
         }
 
         {
-          myOrderTab === 'working' && (
+          myOrderTab === 'working' && mainTab === 'mine' && (
             <View>
               {
                 ordernotdeliverd.length === 0 ? (
@@ -318,10 +318,10 @@ const OrderDriver = () => {
           )
         }
         {
-          myOrderTab === 'finish' && (
+          myOrderTab === 'finish'&& mainTab === 'mine' && (
             <View>
               {
-                orderfinish.length === 0 ? (
+                orderfinish.length === 0  ? (
                   <Text style={styles.emptyText}>Bạn không có đơn hàng nào </Text>
                 ) : (
                   orderfinish.map((order) => (

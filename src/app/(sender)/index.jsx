@@ -44,12 +44,17 @@ export default function HomeScreen() {
 
     router.replace("/login");
   };
+
+
   return (
     <View style={styles.container}>
       <Text style={styles.welcomeTitle}>Trang Chủ Logistics Hub</Text>
       <Text style={styles.roleText}>Vai trò hiện tại: {userRole}</Text>
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} >
         <Text style={styles.logoutText} >Đăng xuất</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => router.push("/create_orders")}>
+        <Text>Tạo đơn</Text>
       </TouchableOpacity>
     </View>
   );
