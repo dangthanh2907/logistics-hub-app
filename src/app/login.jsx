@@ -17,7 +17,7 @@ import axiosClient from '../api/axiosClient'; // gọi axiousClient vào
 
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState(''); // lấy username
+  const [phonenumber, setPhonenumber] = useState(''); // lấy phonenumber
   const [password, setPassword] = useState(''); // lấy password
   const [showPassword, setShowPassword] = useState(false); // hiện thị mk
   const router = useRouter(); // điều hướng 
@@ -26,14 +26,14 @@ export default function LoginScreen() {
   // hàm xử lý khi bấm đăng nhập , sẽ gửi 
   const handleLogin = async () => {
     // kiểm tra text có trông không
-    if (!username || !password) {
+    if (!phonenumber || !password) {
       Alert.alert('Thông báo', 'Vui lòng nhập đầy đủ thông tin và mật khẩu');
       return;
     }
     try {
       //nếu có thông tin thì
       const respone = await axiosClient.post("auth/login", {// gửi 1 http post lên backend
-        username: String(username).trim(),
+        phonenumber: String(phonenumber).trim(),
         password: String(password).trim()
       });
       //console.log("server trả dề: ",respone);
@@ -46,11 +46,11 @@ export default function LoginScreen() {
       if (rememberdevice) {
         // Lưu trạng thái đã nhớ thiết bị và tên tài khoản
         await AsyncStorage.setItem("rememberDevice", "true");
-        await AsyncStorage.setItem("savedUsername", String(username).trim());
+        await AsyncStorage.setItem("savedPhonenumber", String(phonenumber).trim());
       } else {
         // Nếu không chọn nhớ: xóa cờ để lần sau mở app bắt đăng nhập lại
         await AsyncStorage.removeItem("rememberDevice");
-        await AsyncStorage.removeItem("savedUsername");
+        await AsyncStorage.removeItem("savedPhonenumbe");
       }
 
       // phân quyền
@@ -109,9 +109,9 @@ export default function LoginScreen() {
       {/* Login Card */}
       <View style={styles.card}>
 
-        {/* Username */}
+        {/* Phonenumbe */}
         <Text style={styles.label}>
-          Tên tài khoản
+          Số Điện Thoại
         </Text>
 
         <View style={styles.inputBox}>
@@ -124,10 +124,10 @@ export default function LoginScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Tên người dùng"
+            placeholder="Số điện thoại"
             placeholderTextColor="#747780"
-            value={username} // lấy biến đưa vào text 
-            onChangeText={setUsername} // lắng nghe thay đổi có thay đổi gì thì đưa vào setUsername để cập nhật username
+            value={phonenumber} // lấy biến đưa vào text 
+            onChangeText={setPhonenumber} // lắng nghe thay đổi có thay đổi gì thì đưa vào setPhonenumbe để cập nhật Phonenumbe
           />
 
           <Ionicons
@@ -232,7 +232,7 @@ export default function LoginScreen() {
             Chưa có tài khoản?
           </Text>
 
-          <TouchableOpacity>
+          <TouchableOpacity onPress={()=>{router.push("select_role")}}>
             <Text style={styles.registerLink}>
               Tạo tài khoản mới
             </Text>

@@ -7,9 +7,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage'; // cái n�
 // tạo 1 axious client riêng cho app 
 const axiosClient = axios.create({
   baseURL: "http://10.0.2.2:8080/api",
-  headers: {
-    'Content-Type': 'application/json', // báo cho springboot rằng dữ liệu gửi lên là json
-  },
 });
 
 axiosClient.interceptors.request.use(async (config) => {  // .interceptors.request dùng để can thiệp vào request trưcos khi gửi đi , 

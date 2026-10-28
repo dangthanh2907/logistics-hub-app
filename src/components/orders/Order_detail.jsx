@@ -16,7 +16,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState, useMemo } from 'react';
 
 import { Ionicons } from '@expo/vector-icons';
-import axiosClient from '../api/axiosClient';
+import axiosClient from '../../api/axiosClient';
 
 
 const Order_detail = (props) => {
@@ -590,7 +590,7 @@ const Order_detail = (props) => {
                                 </Text>
 
                                 <Text style={styles.packageValue}>
-                                    {props.order.weight}kg
+                                    {props.order.weight} tấn 
                                 </Text>
 
                             </View>

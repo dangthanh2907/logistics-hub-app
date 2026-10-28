@@ -1,17 +1,16 @@
-import React, { use, useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
+  Alert,
+  ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  Alert,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import OrderCard from '../../components/Order_card';
-import { List } from '@expo/ui';
 import axiosClient from '../../api/axiosClient';
+import OrderCard from '../../components/orders/Order_card';
 const OrderDriver = () => {
 
   const [mainTab, setMainTab] = useState('available'); // us set 2 tab trong đơn hàng
@@ -78,6 +77,8 @@ const OrderDriver = () => {
       setMainTab("mine"); // chuyển qua đơn hàng của tôi
 
       setMyOrderTab("working") // mục đang làm việc 
+      console.log("Thông tin đơn hàng khi nhận ",order);
+      
 
     } catch (error) {
       const errorMsg = error.response?.data?.message || 'Vui lòng kiểm tra lại!';

@@ -4,6 +4,7 @@ import "../global.css";
 export default function RootLayout() {
   return (
     <Stack screenOptions={{ headerShown:false}}>
+      {/* <Stack.Screen name="register" /> */}
       <Stack.Screen name="login" />
       {/* khai báo chuyển đến sender */}
       <Stack.Screen name="(sender)" /> 
