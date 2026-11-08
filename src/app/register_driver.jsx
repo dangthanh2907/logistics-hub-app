@@ -1,4 +1,4 @@
-
+import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
     View,
@@ -16,7 +16,7 @@ import {
     Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-
+import axiosClient from '../api/axiosClient';
 const C = {
     primary: '#00193C',
     primaryContainer: '#0F2E5A',
@@ -71,37 +71,113 @@ const DOCUMENTS = [
 export default function register_driver() {
     const router = useRouter();
 
-    const [fullName, setFullName] = useState('');
-    const [phone, setPhone] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    // const [fullName, setFullName] = useState('');
+    // const [phone, setPhone] = useState('');
+    // const [email, setEmail] = useState('');
+    // const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-
-    const [selectedLicense, setSelectedLicense] = useState('Hạng FC');
     const [acceptedTerms, setAcceptedTerms] = useState(true);
-    const [documents, setDocuments] = useState({});
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+
+    const [form, setForm] = useState({
+        fullname: '',
+        phonenumber: '',
+        email: '',
+        password: '',
+        selectedLicense: 'Hạng FC',
+        vehicle_type: '',
+        vehicle_number: ''
+    });
+    const [documents, setDocuments] = useState({
+        licenseFront: null,
+        licenseBack: null,
+        vehicleFront: null,
+        vehicleBack: null,
+    });
+
 
     const uploadedCount = Object.values(documents).filter(Boolean).length;
 
     const passwordStrength = [
-        password.length >= 8,
-        /[A-Z]/.test(password),
-        /[0-9]/.test(password),
-        /[^A-Za-z0-9]/.test(password),
+        form.password.length >= 8,
+        /[A-Z]/.test(form.password),
+        /[0-9]/.test(form.password),
+        /[^A-Za-z0-9]/.test(form.password),
     ].filter(Boolean).length;
 
-    const handleChooseImage = (documentId) => {
-        // UI mẫu: tích hợp expo-image-picker tại đây để chọn ảnh thật.
-        Alert.alert(
-            'Tải giấy tờ',
-            'Bạn có thể kết nối expo-image-picker để chụp ảnh hoặc chọn ảnh từ thư viện.'
-        );
+    const handleChooseImage = async (documentId) => {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync(); // yêu cầu truy cập
+        if (!permissionResult.granted) { //grated là thuộc tích của expo xem người dùng đã cấp quyền hay chưua
+            alert("Bạn cần cấp quyền truy cập thư viện để chọn ảnh!");
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+        })
+
+        if (!result.canceled) {
+            const image = result.assets[0];
+            setDocuments(prev => ({
+                ...prev,
+                [documentId]: {
+                    uri: image.uri,
+                    name: image.fileName || `${documentId}.jpg`,
+                    type: image.mimeType || 'image/jpeg',
+                },
+            }));
+        }
+    };
+    const buildFormData = () => {
+        const formData = new FormData();
+        const formRegister = {
+            fullname: form.fullname,
+            phonenumber: form.phonenumber,
+            email: form.email,
+            password: form.password,
+            role: 'DRIVER',
+            vehicle_type: form.vehicle_type,
+            vehicle_number: form.vehicle_number
+        };
+
+        formData.append('form_register', JSON.stringify(formRegister));
+        formData.append('licenseFront', {
+            uri: documents.licenseFront.uri,
+            name: documents.licenseFront.name,
+            type: documents.licenseFront.type,
+        });
+
+        formData.append('licenseBack', {
+            uri: documents.licenseBack.uri,
+            name: documents.licenseBack.name,
+            type: documents.licenseBack.type,
+        });
+
+        formData.append('vehicle_registrationFront', {
+            uri: documents.vehicleFront.uri,
+            name: documents.vehicleFront.name,
+            type: documents.vehicleFront.type,
+        });
+
+        formData.append('vehicle_registrationBack', {
+            uri: documents.vehicleBack.uri,
+            name: documents.vehicleBack.name,
+            type: documents.vehicleBack.type,
+        });
+        return formData;
     };
 
-    const handleSubmit = () => {
-        if (!fullName.trim() || !phone.trim() || !password) {
+    //hàm gửi khi bấm nộp
+    const handleSubmit = async () => {
+        const requiredDocuments = [
+            'licenseFront',
+            'licenseBack',
+            'vehicleFront',
+            'vehicleBack'
+        ];
+        if (!form.fullname.trim() || !form.phonenumber.trim() || !form.password) {
             Alert.alert(
                 'Thiếu thông tin',
                 'Vui lòng nhập họ tên, số điện thoại và mật khẩu.'
@@ -109,7 +185,7 @@ export default function register_driver() {
             return;
         }
 
-        if (!selectedLicense) {
+        if (!form.selectedLicense) {
             Alert.alert('Thiếu thông tin', 'Vui lòng chọn hạng giấy phép lái xe.');
             return;
         }
@@ -130,18 +206,40 @@ export default function register_driver() {
             return;
         }
 
-        // TODO: Gọi API Spring Boot để gửi hồ sơ đăng ký tài xế.
-        setSubmitting(true);
 
-        setTimeout(() => {
-            setSubmitting(false);
-            setSubmitted(true);
+        const missingDocument = requiredDocuments.some(
+            key => !documents[key]
+        );
 
+        if (missingDocument) {
             Alert.alert(
-                'Giao diện mẫu',
-                'Kiểm tra thành công. Bạn có thể kết nối API đăng ký tài xế tại đây.'
+                'Thiếu giấy tờ',
+                'Vui lòng tải lên đầy đủ 4 ảnh giấy tờ.'
             );
-        }, 1000);
+            return;
+        }
+        try {
+            setSubmitting(true);
+            const formData = buildFormData();
+            const response = await axiosClient.post('/auth/register', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            setSubmitted(true);
+            Alert.alert(
+                'Đăng ký thành công!',
+                'Hồ sơ bác tài của bạn đã được gửi. Vui lòng chờ Admin kiểm duyệt trong 48 giờ trước khi đăng nhập.',
+                [{ text: 'Về trang đăng nhập', onPress: () => router.replace('/login') }]
+            );
+        } catch (error) {
+            console.error("Lỗi đăng ký tài xế:", error);
+            const errorMsg = error.response?.data || error.message || 'Đã có lỗi xảy ra khi kết nối máy chủ.';
+            Alert.alert('Đăng ký thất bại', typeof errorMsg === 'string' ? errorMsg : 'Vui lòng kiểm tra lại dữ liệu.');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -236,8 +334,11 @@ export default function register_driver() {
                                     <Text style={styles.inputIcon}>▣</Text>
                                     <TextInput
                                         style={styles.input}
-                                        value={fullName}
-                                        onChangeText={setFullName}
+                                        value={form.fullname}
+                                        onChangeText={(text) => setForm(prev => ({
+                                            ...prev,
+                                            fullname: text
+                                        }))}
                                         placeholder="VD: Trần Nhật Tuyên"
                                         placeholderTextColor={C.outline}
                                         autoCapitalize="words"
@@ -252,15 +353,16 @@ export default function register_driver() {
                                 </Text>
 
                                 <View style={styles.inputBox}>
-                                    <Text style={styles.flag}>🇻🇳</Text>
-                                    <Text style={styles.countryCode}>+84</Text>
                                     <View style={styles.verticalDivider} />
                                     <Text style={styles.inputIcon}>☎</Text>
 
                                     <TextInput
                                         style={styles.input}
-                                        value={phone}
-                                        onChangeText={setPhone}
+                                        value={form.phonenumber}
+                                        onChangeText={(text) => setForm(prev => ({
+                                            ...prev,
+                                            phonenumber: text
+                                        }))}
                                         placeholder="0912 345 678"
                                         placeholderTextColor={C.outline}
                                         keyboardType="phone-pad"
@@ -278,8 +380,11 @@ export default function register_driver() {
                                     <Text style={styles.inputIcon}>✉</Text>
                                     <TextInput
                                         style={styles.input}
-                                        value={email}
-                                        onChangeText={setEmail}
+                                        value={form.email}
+                                        onChangeText={(text) => setForm(prev => ({
+                                            ...prev,
+                                            email: text
+                                        }))}
                                         placeholder="VD: email@domain.com"
                                         placeholderTextColor={C.outline}
                                         keyboardType="email-address"
@@ -287,7 +392,49 @@ export default function register_driver() {
                                     />
                                 </View>
                             </View>
+                            {/* Loại xe vận chueyern*/}
+                            <View style={styles.field}>
+                                <Text style={styles.label}>
+                                    Loại xe
+                                </Text>
 
+                                <View style={styles.inputBox}>
+
+                                    <TextInput
+                                        style={styles.input}
+                                        value={form.vehicle_type}
+                                        onChangeText={(text) => setForm(prev => ({
+                                            ...prev,
+                                            vehicle_type: text
+                                        }))}
+                                        placeholder="VD: Honda"
+                                        placeholderTextColor={C.outline}
+                                        autoCapitalize="none"
+                                    />
+                                </View>
+                            </View>
+
+                            {/*Biển số xe*/}
+                            <View style={styles.field}>
+                                <Text style={styles.label}>
+                                    Biển số xe
+                                </Text>
+
+                                <View style={styles.inputBox}>
+
+                                    <TextInput
+                                        style={styles.input}
+                                        value={form.vehicle_number}
+                                        onChangeText={(text) => setForm(prev => ({
+                                            ...prev,
+                                            vehicle_number: text
+                                        }))}
+                                        placeholder="VD:29-A1 123456"
+                                        placeholderTextColor={C.outline}
+                                        autoCapitalize="none"
+                                    />
+                                </View>
+                            </View>
                             {/* Password */}
                             <View style={styles.field}>
                                 <Text style={styles.label}>
@@ -298,8 +445,11 @@ export default function register_driver() {
                                     <Text style={styles.inputIcon}>▣</Text>
                                     <TextInput
                                         style={styles.input}
-                                        value={password}
-                                        onChangeText={setPassword}
+                                        value={form.password}
+                                        onChangeText={(text) => setForm(prev => ({
+                                            ...prev,
+                                            password: text
+                                        }))}
                                         placeholder="Nhập mật khẩu"
                                         placeholderTextColor={C.outline}
                                         secureTextEntry={!showPassword}
@@ -323,14 +473,14 @@ export default function register_driver() {
                                             style={[
                                                 styles.strengthBar,
                                                 item <= Math.ceil(passwordStrength * 3 / 4) &&
-                                                    styles.strengthBarActive,
+                                                styles.strengthBarActive,
                                             ]}
                                         />
                                     ))}
                                     <Text style={styles.strengthText}>
                                         {passwordStrength === 4
                                             ? 'Bảo mật mạnh'
-                                            : password.length === 0
+                                            : form.password.length === 0
                                                 ? 'Đánh giá mật khẩu'
                                                 : 'Cần tăng độ mạnh'}
                                     </Text>
@@ -345,19 +495,20 @@ export default function register_driver() {
 
                                 <View style={styles.licenseGrid}>
                                     {LICENSES.map((license) => {
-                                        const selected =
-                                            selectedLicense === license.label;
+                                        const selected = form.selectedLicense === license.label;
 
                                         return (
                                             <Pressable
                                                 key={license.label}
                                                 onPress={() =>
-                                                    setSelectedLicense(license.label)
+                                                    setForm(prev => ({
+                                                        ...prev,
+                                                        selectedLicense: license.label,
+                                                    }))
                                                 }
                                                 style={[
                                                     styles.licenseButton,
-                                                    selected &&
-                                                        styles.licenseButtonSelected,
+                                                    selected && styles.licenseButtonSelected,
                                                 ]}
                                             >
                                                 {selected && (
@@ -368,17 +519,16 @@ export default function register_driver() {
                                                     <Text
                                                         style={[
                                                             styles.licenseText,
-                                                            selected &&
-                                                                styles.licenseTextSelected,
+                                                            selected && styles.licenseTextSelected,
                                                         ]}
                                                     >
                                                         {license.label}
                                                     </Text>
+
                                                     <Text
                                                         style={[
                                                             styles.licenseDescription,
-                                                            selected &&
-                                                                styles.licenseTextSelected,
+                                                            selected && styles.licenseTextSelected,
                                                         ]}
                                                     >
                                                         {license.description}
@@ -391,6 +541,8 @@ export default function register_driver() {
                             </View>
                         </View>
                     </View>
+
+
 
                     {/* Section 2 */}
                     <View style={styles.section}>
